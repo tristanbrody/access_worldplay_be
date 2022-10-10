@@ -8,9 +8,9 @@ const indexRouter = require("./routes/index");
 const authorizationRouter = require("./routes/authorization");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const { sequelize } = require("./Models.js");
 
 const app = express();
-
 app.use(bodyParser.json());
 app.use(logger("dev"));
 app.use(express.json());
@@ -38,4 +38,15 @@ app.use(function (err, req, res, next) {
   res.send("error");
 });
 
+(async () => {
+  try {
+    await sequelize.authenticate();
+    console.log("connected successfully");
+    await sequelize.sync({ alter: true });
+    console.log("synced correctly");
+  } catch (err) {
+    console.log("cannot connect to DB");
+    console.dir(err);
+  }
+})();
 module.exports = app;

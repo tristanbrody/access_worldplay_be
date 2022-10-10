@@ -4,7 +4,11 @@ const axios = require("axios");
 // const viewEngine = require('express-json-views');
 
 const { v4: uuid } = require("uuid");
-
+const { sequelize, Order, Payment, Customer } = require("../Models.js");
+// const getDbClient = async () => {
+//   return db.pool.connect();
+// };
+const app = express();
 // express.engine('json', viewEngine({
 //   helpers: require('./views/helpers')
 // }))
@@ -28,10 +32,11 @@ router.get("/", async function (req, res, next) {
 });
 
 router.post("/", async function (req, res, next) {
+  const randomOrderCode = uuid();
   const sampleAuthorizationRequest = JSON.stringify({
-    transactionReference: uuid(),
+    transactionReference: randomOrderCode,
     merchant: {
-      entity: "default",
+      entity: req.body.entity,
     },
     instruction: {
       narrative: {
@@ -43,22 +48,37 @@ router.post("/", async function (req, res, next) {
       },
       paymentInstrument: {
         type: "card/plain",
-        cardNumber: "4444333322221111",
+        cardNumber: req.body.cardNumber,
+        cardHolderName: `${req.body.firstName} ${req.body.lastName}`,
+        cvc: req.body.cvc,
         cardExpiryDate: {
-          month: 5,
-          year: 2035,
+          month: req.body.expirationMonth,
+          year: req.body.expirationYear,
         },
       },
     },
   });
-  console.dir(req.body);
-  return { Data: "Hello" };
-  // const authorizationResponse = await axios.post(
-  //   "https://try.access.worldpay.com/payments/authorizations",
-  //   sampleAuthorizationRequest,
-  //   config
-  // );
-  // res.send(authorizationResponse.data);
+  const authorizationResponse = await axios.post(
+    "https://try.access.worldpay.com/payments/authorizations",
+    sampleAuthorizationRequest,
+    config
+  );
+  const newOrder = await Order.create({
+    orderCode: randomOrderCode,
+  });
+
+  console.dir(newOrder.dataValues.id);
+
+  const newPayment = await Payment.create({
+    amount: 250,
+    status: authorizationResponse.data.outcome,
+    OrderId: newOrder.dataValues.id,
+  });
+
+  res.send({
+    res: authorizationResponse.data,
+    newOrderCode: randomOrderCode,
+  });
 });
 
 module.exports = router;
